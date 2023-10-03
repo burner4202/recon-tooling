@@ -1,0 +1,80 @@
+# This file describes an application. You can have multiple applications
+# in the same project.
+
+# The name of this app. Must be unique within a project.
+name: app
+
+# The type of the application to build.
+type: php:7.4
+build:
+    flavor: composer
+
+# The hooks that will be performed when the package is deployed.
+hooks:
+  deploy: |
+    set -e
+    php artisan migrate --force
+    php artisan route:clear
+    php artisan route:cache
+
+# The relationships of the application with services or other applications.
+# The left-hand side is the name of the relationship as it will be exposed
+# to the application in the PLATFORM_RELATIONSHIPS variable. The right-hand
+# side is in the form `<service name>:<endpoint name>`.
+relationships:
+    database: "mysqldb:mysql"
+    redis: "redis:redis"
+
+# The size of the persistent disk of the application (in MB).
+disk: 8192
+
+# The mounts that will be performed when the package is deployed.
+mounts:
+  "storage/app/public": "shared:files/public"
+  "storage/framework/views": "shared:files/views"
+  "storage/framework/sessions": "shared:files/sessions"
+  "storage/framework/cache": "shared:files/cache"
+  "storage/framework/": "shared:files/framework"
+  "storage/logs": "shared:files/logs"
+  "storage/package_payments": "shared:files/package_payments"
+  "storage/hitlist": "shared:files/hitlist"
+  "bootstrap/cache": "shared:files/bootstrap/cache"
+  "/.config": "shared:files/config"
+  "storage" : "shared:files/storage"
+  "cache" : "shared:files/esi/cache"
+  "logs" : "shared:files/esi/logs"
+  "public/cache" : "shared:files/esi/cache"
+  "public/logs" : "shared:files/esi/logs"
+  "public/upload/users" : "shared:files/uploads/users"
+  "storage/app/GSF-Recon-Tools": "shared:files/storage/app/GSF-Recon-Tools"
+  "storage/app/temp": "shared:files/storage/app/temp"
+  "public/assets/js/d3/alliances": "shared:files/public/assets/js/d3"
+# The configuration of app when it is exposed to the web.
+web:
+  locations:
+    "/":
+      root: "public"
+      index:
+        - index.php
+      allow: true
+      passthru: "/index.php"
+
+workers:
+    queue:
+        size: S
+        commands:
+            start: |
+                php artisan schedule:daemon
+    horizon:
+        size: S
+        commands:
+            start: |
+                php artisan horizon
+
+crons:
+  backup:
+      spec: '0 5 * * *'
+      cmd: |
+          if [ "$PLATFORM_BRANCH" = master ]; then
+              platform backup:create --yes --no-wait
+          fi
